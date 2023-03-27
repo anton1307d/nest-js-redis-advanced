@@ -6,7 +6,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-
 @Entity()
 export class Post {
   @PrimaryGeneratedColumn()
@@ -26,5 +25,4 @@ export class Post {
 
   @UpdateDateColumn({ default: () => 'CURRENT_TIMESTAMP' })
   updatedAt: Date;
-
 }
