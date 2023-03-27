@@ -1,7 +1,7 @@
 services:
   api:
     build:
-      dockerfile: ./.deploy/Dockerfile
+      dockerfile: ./.infra/Dockerfile
       context: .
       target: development
     env_file:
@@ -10,9 +10,8 @@ services:
       - .:/usr/src/app
       - /usr/src/app/node_modules
     command: npm run start:dev
-    network_mode: host
     ports:
-      - '3000:3000'
+      - '8000:8000'
     depends_on:
       - postgres
   postgres:
@@ -26,68 +25,121 @@ services:
       - '5432:5432'
     volumes:
       - postgres:/var/lib/postgresql/data
-  redis-1:
-    container_name: "redis-1"
+
+  redis-master:
+    container_name: "redis-master"
+    image: redis:6.0-alpine
+    command: redis-server
+    ports:
+      - "6379:6379"
+
+  redis-slave1:
+    container_name: "redis-slave1"
     image: redis:6.0-alpine
     ports:
-      - 7000:7000
-      - 17000:17000
-    volumes:
-      - "./.infra/local/services/redis/redis.conf:/etc/redis.conf"
-    command: redis-server /etc/redis.conf --port 7000
-    network_mode: "host"
-  redis-2:
-    container_name: "redis-2"
+      - "6380:6379"
+    command: redis-server --slaveof redis-master 6379
+    depends_on:
+      - redis-master
+
+  redis-slave2:
+    container_name: "redis-slave2"
     image: redis:6.0-alpine
     ports:
-      - 7001:7001
-      - 17001:17001
-    volumes:
-      - "./.infra/local/services/redis/redis.conf:/etc/redis.conf"
-    command: redis-server /etc/redis.conf --port 7001
-    network_mode: "host"
-  redis-3:
-    container_name: "redis-3"
+      - "6381:6379"
+    command: redis-server --slaveof redis-master 6379
+    depends_on:
+      - redis-master
+
+  redis-sentinel1:
+    container_name: 'redis-sentinel1'
     image: redis:6.0-alpine
     ports:
-      - 7002:7002
-      - 17002:17002
+      - "5000:5000"
+    command: redis-server /etc/sentinel.conf --sentinel
     volumes:
-      - "./.infra/local/services/redis/redis.conf:/etc/redis.conf"
-    command: redis-server /etc/redis.conf --port 7002
-    network_mode: "host"
-  redis-4:
-    container_name: "redis-4"
+      - "./.infra/local/services/redis/sentinel.conf:/etc/sentinel.conf"
+    depends_on:
+      - redis-master
+      - redis-slave1
+      - redis-slave2
+
+  redis-sentinel2:
+    container_name: 'redis-sentinel2'
     image: redis:6.0-alpine
     ports:
-      - 7003:7003
-      - 17003:17003
+      - "5001:5000"
+    command: redis-server /etc/sentinel.conf --sentinel
     volumes:
-      - "./.infra/local/services/redis/redis.conf:/etc/redis.conf"
-    command: redis-server /etc/redis.conf --port 7003
-    network_mode: "host"
-  redis-5:
-    container_name: "redis-5"
+      - "./.infra/local/services/redis/sentinel.conf:/etc/sentinel.conf"
+    depends_on:
+      - redis-master
+      - redis-slave1
+      - redis-slave2
+
+  redis-sentinel3:
+    container_name: 'redis-sentinel3'
     image: redis:6.0-alpine
     ports:
-      - 7004:7004
-      - 17004:17004
+      - "5002:5000"
+    command: redis-server /etc/sentinel.conf --sentinel
     volumes:
-      - "./.infra/local/services/redis/redis.conf:/etc/redis.conf"
-    command: redis-server /etc/redis.conf --port 7004
-    network_mode: "host"
-  redis-6:
-    container_name: "redis-6"
-    image: redis:6.0-alpine
+      - "./.infra/local/services/redis/sentinel.conf:/etc/sentinel.conf"
+    depends_on:
+      - redis-master
+      - redis-slave1
+      - redis-slave2
+
+  # monitoring
+  telegraf:
+    image: telegraf:1.25.2-alpine
+    volumes:
+      - ./.infra/telegraf/etc/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on:
+      - influxdb
     ports:
-      - 7005:7005
-      - 17005:17005
+      - '127.0.0.1:8125:8125/udp'
+
+  influxdb:
+    image: influxdb:1.8-alpine
+    env_file: ./.infra/configuration.env
+    ports:
+      - '127.0.0.1:8086:8086'
     volumes:
-      - "./.infra/local/services/redis/redis.conf:/etc/redis.conf"
-    command: redis-server /etc/redis.conf --port 7005
-    network_mode: "host"
+      - ./.infra/:/imports
+      - influxdb_data:/var/lib/influxdb
+
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy
+    container_name: socket-proxy
+    restart: always
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - '127.0.0.1:2375:2375'
+    environment:
+      - LOG_LEVEL=debug # debug,info,notice,warning,err,crit,alert,emerg
+      - CONTAINERS=1
+      - INFO=1
+
+  grafana:
+    image: grafana/grafana:8.0.2
+    depends_on:
+      - influxdb
+    env_file: ./.infra/configuration.env
+    ports:
+      - '127.0.0.1:3000:3000'
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./.infra/grafana/provisioning/:/etc/grafana/provisioning/
+      - ./.infra/grafana/dashboards/:/var/lib/grafana/dashboards/
 
 
 volumes:
   postgres:
+    driver: local
+  grafana_data:
+    driver: local
+  influxdb_data:
     driver: local

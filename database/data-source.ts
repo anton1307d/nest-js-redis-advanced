@@ -1,9 +1,7 @@
 import {DataSource, DataSourceOptions} from "typeorm";
 import { ConfigService } from '@nestjs/config';
 import { config } from 'dotenv';
-import {Page} from "../src/page/enities/page.entity";
-import {History} from "../src/history/enities/history.entity";
-import {Circle} from "../src/page/enities/circle.entity";
+import {Post} from "../src/post/enities/post.entity";
 
 config();
 
@@ -16,7 +14,7 @@ export const dataSourceOptions: DataSourceOptions = {
     username: configService.get('DB_USER'),
     password: configService.get('DB_PASSWORD'),
     database: configService.get('DB_DATABASE'),
-    entities: [Page, History, Circle],
+    entities: [Post],
     migrations: ['dist/database/migrations/*.js'],
     migrationsRun: true,
     // synchronize: true
