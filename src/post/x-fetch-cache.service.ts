@@ -28,9 +28,9 @@ export class XFetchCacheService {
   }
 
   public async get<T>(key: string): Promise<T | null> {
-    if (await this.isEarlyRecomputeRequired(key)) {
-      return null;
-    }
+    // if (await this.isEarlyRecomputeRequired(key)) {
+    //   return null;
+    // }
 
     return await this.cacheService.get<T>(key);
   }

@@ -39,7 +39,7 @@ export class PostService {
   }
 
   public async randomPost() {
-    const random = Math.floor(Math.random() * 100 + 1);
+    const random = Math.floor(Math.random() * 10000 + 1);
 
     return await this.getPost(random);
   }
