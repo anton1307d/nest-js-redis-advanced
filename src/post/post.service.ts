@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Post } from './enities/post.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import {XFetchCacheService} from "./x-fetch-cache.service";
+import { XFetchCacheService } from './x-fetch-cache.service';
 
 @Injectable()
 export class PostService {
