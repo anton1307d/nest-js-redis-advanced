@@ -1,83 +1,111 @@
 import {
-    Controller,
-    Get,
-    Param, Post,
-    Res, UploadedFiles, UseInterceptors,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Res,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { Readable } from 'stream';
-import {AnyFilesInterceptor} from "@nestjs/platform-express";
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { promises as fs } from 'fs';
 
 @Controller('optimize')
 export class OptimizeController {
-    constructor(
-        @InjectQueue('image') private readonly imageQueue: Queue,
-    ) {}
+  constructor(@InjectQueue('image') private readonly imageQueue: Queue) {}
 
-    @Post('image')
-    @UseInterceptors(AnyFilesInterceptor())
-    async processImage(@UploadedFiles() files: Express.Multer.File[]) {
+  @Post('image')
+  @UseInterceptors(AnyFilesInterceptor())
+  async processImage(@UploadedFiles() files: Express.Multer.File[]) {
+    const job = await this.imageQueue.add('optimize', {
+      files,
+    });
 
-        const job = await this.imageQueue.add('optimize', {
-            files
-        });
+    return {
+      jobId: job.id,
+    };
+  }
 
-        return {
-            jobId: job.id
-        }
+  @Get('image/load')
+  async loadProcessImage() {
+    const filename = './test.png';
+
+    const data = await fs.readFile(filename);
+    const stats = await fs.stat(filename);
+
+    const files = [];
+
+    const file = {
+      buffer: data,
+      originalname: filename,
+      mimetype: 'application/octet-stream',
+      size: stats.size,
+    };
+
+    files.push(file);
+
+    const job = await this.imageQueue.add('optimize', {
+      files,
+    });
+
+    return {
+      jobId: job.id,
+    };
+  }
+
+  @Get('image/:id')
+  async getJobResult(@Res() response: Response, @Param('id') id: string) {
+    const job = await this.imageQueue.getJob(id);
+
+    if (!job) {
+      return response.sendStatus(404);
     }
 
-    @Get('image/load')
-    @UseInterceptors(AnyFilesInterceptor())
-    async loadProcessImage() {
+    const isCompleted = await job.isCompleted();
 
-        const filename = './test.png';
-
-        const data = await fs.readFile(filename);
-        const stats = await fs.stat(filename);
-
-        const files = [];
-
-        const file = {
-            buffer: data,
-            originalname: filename,
-            mimetype: 'application/octet-stream',
-            size: stats.size
-        };
-
-
-        files.push(file);
-
-        const job = await this.imageQueue.add('optimize', {
-            files
-        });
-
-        return {
-            jobId: job.id
-        }
+    if (!isCompleted) {
+      return response.sendStatus(202);
     }
 
-    @Get('image/:id')
-    async getJobResult(@Res() response: Response, @Param('id') id: string) {
-        const job = await this.imageQueue.getJob(id);
+    const result = Buffer.from(job.returnvalue);
 
-        if (!job) {
-            return response.sendStatus(404);
-        }
+    const stream = Readable.from(result);
 
-        const isCompleted = await job.isCompleted();
+    stream.pipe(response);
+  }
 
-        if (!isCompleted) {
-            return response.sendStatus(202);
-        }
+  @Get('image/load')
+  async loadProcessBeanstalkdImage() {
+    const filename = './test.png';
 
-        const result = Buffer.from(job.returnvalue);
+    const data = await fs.readFile(filename);
+    const stats = await fs.stat(filename);
 
-        const stream = Readable.from(result);
+    const files = [];
 
-        stream.pipe(response);
-    }
+    const file = {
+      buffer: data,
+      originalname: filename,
+      mimetype: 'application/octet-stream',
+      size: stats.size,
+    };
+
+    files.push(file);
+
+    const job = await this.imageQueue.add('optimize', {
+      files,
+    });
+
+    return {
+      jobId: job.id,
+    };
+  }
+
+
+
+
 }

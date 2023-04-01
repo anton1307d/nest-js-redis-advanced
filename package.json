@@ -38,6 +38,7 @@
     "cache-manager-redis-store": "^2.0.0",
     "imagemin": "^7.0.1",
     "imagemin-pngquant": "^9.0.2",
+    "nodestalker": "^0.1.22",
     "pg": "^8.10.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.2.0",

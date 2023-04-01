@@ -26,23 +26,32 @@ services:
     volumes:
       - postgres:/var/lib/postgresql/data
 
-  redis-rdb:
+#  redis-rdb:
+#    image: redis
+#    container_name: redis-rdb
+#    command: redis-server --save 900 1 --appendonly no
+#    volumes:
+#      - redis_rdb_data:/data
+#    ports:
+#      - 6380:6379
+#
+#  redis-aof:
+#    image: redis
+#    container_name: redis-aof
+#    command: redis-server --appendonly yes
+#    volumes:
+#      - redis_aof_data:/data
+#    ports:
+#      - 6379:6379
+
+  redis-no-persistence:
     image: redis
-    container_name: redis-rdb
-    command: redis-server --save 900 1 --appendonly no
+    container_name: redis-no-persistence
+    command: redis-server --appendonly no --save ""
     volumes:
-      - redis_rdb_data:/data
+      - redis_no_persistence_data:/data
     ports:
       - 6379:6379
-
-  redis-aof:
-    image: redis
-    container_name: redis-aof
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_aof_data:/data
-    ports:
-      - 6380:6379
 
   beanstalkd:
     image: schickling/beanstalkd
@@ -106,4 +115,6 @@ volumes:
   redis_rdb_data:
     driver: local
   redis_aof_data:
+    driver: local
+  redis_no_persistence_data:
     driver: local
